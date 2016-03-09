@@ -1,17 +1,19 @@
 ---
 title: "MATH 216 Homework 1"
-author: "WRITE YOUR NAME HERE"
+author: "Sanket Vadlamani"
 output: html_document
 ---
 
-```{r, echo=FALSE, message=FALSE, cache=TRUE}
+```{r, echo=FALSE, message=FALSE}
 # DO NOT EDIT THIS SECTION
 
 # Load packages
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(lubridate))
+```
 
+```{r, echo=FALSE, message=FALSE, cache=TRUE}
 # Load data sets. Note this assumes this .Rmd files is in the same directory as
 # the .csv files.
 flights <- read.csv("data/flights.csv", stringsAsFactors = FALSE) %>% 
@@ -36,10 +38,10 @@ states <- read.csv("data/states.csv", stringsAsFactors = FALSE) %>%
 
 Please indicate
 
-* Who you collaborated with:
-* Roughly how much time you spent on this HW:
-* What gave you the most trouble:
-* Any comments you have:
+* Who you collaborated with: Phil Hoxie
+* Roughly how much time you spent on this HW: 15 hours
+* What gave you the most trouble: Getting R and Github to work together
+* Any comments you have: I could have been more 'fancy' with the aesthetics of my plots. Will definitely make them sexier when I revise this assignment. 
 
 
 
@@ -53,12 +55,34 @@ Please indicate
 * Which seasons did we tend to see the most and least delays of > 30 minutes.
 
 ```{r, echo=FALSE, message=FALSE, fig.width=12, fig.height=6}
+delay_or_not <- c(30:982)
+flights <- flights %>%
+  mutate(delay = ifelse(dep_delay %in% delay_or_not, 'yes', 'no'))
 
+new.date <- as.Date(flights$date)
+form.new.date <- cbind(flights$date, year = year(new.date), month = month(new.date), day = day(new.date))
+
+flights <- bind_cols(flights,data.frame(form.new.date))
+
+total_flights_per_month <- flights %>% 
+  group_by(month) %>% 
+  tally() %>% 
+  rename(total_flights_per_month = n)
+
+delayed_flights_per_month <- flights %>% 
+  group_by(delay,month) %>% 
+  tally() %>% 
+  rename(delayed_flights_per_month = n)
+
+proportion_flights_delayed <- left_join(delayed_flights_per_month, total_flights_per_month, by="month") %>% 
+mutate(prop = round(delayed_flights_per_month/total_flights_per_month,3))
+
+proportion_flights_delayed <- filter(proportion_flights_delayed, delay == "yes")
+
+ggplot(data=proportion_flights_delayed, aes(x = month, y = prop)) + geom_bar(stat="identity")
 ```
 
-
-
-
+The plot above is a time series of the proportion of flights that were delayed on average per month. It is evident that the months of April, May, June and July had the most delays. Therefore summer on average had the most delays. It also seems like fall had the least delays.Months August, September, October and Novemeber had the least delays. The limitation of this plot is that it bins the delays by month and therefore is not as accurate as a similar graph with date as the unit of the time axis. However having 365 values presents difficulties in interpretation. Since we are only concerned with season it is justifable to use months instead, even though we cannot convey the same amount of information, because most people would think of seasons in terms of months and not dates themselves. 
 
 ## Question 2:
 
@@ -66,14 +90,18 @@ Some people prefer flying on older planes.  Even though they aren't as nice,
 they tend to have more room.  Which airlines should these people favor?
 
 ```{r, echo=FALSE, fig.width=12, fig.height=6}
+planes_and_flights <- inner_join(planes, flights, by="plane")
+planes_and_flights_selected <- planes_and_flights %>%
+  arrange(year.x, carrier) %>% 
+  select(year.x , carrier)
+planes_and_flights_selected_unique <- unique(planes_and_flights_selected)
 
+ggplot(data=planes_and_flights_selected_unique, aes(x = carrier, y = year.x)) +
+  geom_hline(yintercept=1980) +
+  geom_point()
 ```
 
-
-
-
-
-
+In the graph above each point represents an aircraft. The x axis represents the carrier that owns that particular aircraft. The y axis represents the year in which that aircraft was built. A quick online search suggests that it was from that 1980 most planes started to decrease their leg-room. Therefore 1980 can be the parameter used to distinguish easily between "old" and "new" flights. Passengers who prefer flying older airplanes for the extra leg-room should choose American Airlines as AA is the carrier that has most number of flights in operation that were built before 1980. The other option is Delta though not as much as American. 
 
 ## Question 3:
 
@@ -82,24 +110,87 @@ they tend to have more room.  Which airlines should these people favor?
 
 
 ```{r, echo=FALSE, message=FALSE, fig.width=12, fig.height=6}
+south_west_flights <- flights %>% 
+  filter(carrier=="WN")
+
+south_west_flights_destination <- south_west_flights %>% 
+  group_by(dest) %>% 
+  tally() %>% 
+  rename(south_west_flights_destination = n)
+
+south_west_flights_distinct <- south_west_flights  %>% 
+  distinct(flight)
+
+south_west_flights_distinct_destination <- south_west_flights_distinct %>% 
+  group_by(dest)  %>% 
+  tally() %>% 
+  rename(south_west_flights_distinct_destination = n)
+
+airports_and_states <- left_join(airports,states,by=c("state"="state"))
+
+south_west_flights_destination_state <- left_join(south_west_flights_destination, airports_and_states, by=c("dest"="iata")) %>% 
+  select(dest,south_west_flights_destination,state,fullname)
+south_west_flights_distinct_destination_state <- left_join(south_west_flights_distinct_destination, airports_and_states,by=c("dest"="iata")) %>% 
+  select(dest,south_west_flights_distinct_destination,state,fullname)
+
+ggplot(data=south_west_flights_destination_state, aes(x = state, y = south_west_flights_destination)) + geom_bar(stat="identity")
+ggplot(data=south_west_flights_distinct_destination_state, aes(x = state, y = south_west_flights_distinct_destination)) + geom_bar(stat="identity")
 
 ```
 
-
-
-
+The first figure shows the number of all southwest flights that fly from Houston to each represented state. It seems like of all the southwest flights most of them tend to fly to Texas. The second figure shows the number of distinct southwest flights flying out from Houston. Once again Texas has the most number of distinct southwest flights. It looks like the two figures only differ in absolute numbers. In relative terms however the flights seem to fly to the same states in the same proportions. 
 
 ## Question 4:
 
 What weather patterns are associated with the biggest departure delays?
 
 ```{r, echo=FALSE, message=FALSE, fig.width=12, fig.height=6}
+flights_separated_weather <- left_join(flights,weather, by=c("date"="date", "hour"="hour"))
+flights_separated_weather$time <- NULL
+big_delay_or_not_1 <- c(180:982)
+flights_separated_weather <- flights_separated_weather %>%
+  mutate(delay = ifelse(dep_delay %in% big_delay_or_not_1, 'yes', 'no')) %>%
+  filter(delay=="yes")
 
+ggplot(data=flights_separated_weather, aes(x = dep_delay, y = conditions)) +
+  geom_point()+
+  ggtitle("Figure 1")
+
+delays_by_condition_1 <- flights_separated_weather %>% 
+  group_by(conditions) %>% 
+  tally() %>% 
+  rename(delays_by_condition = n) %>% 
+  arrange(desc(delays_by_condition))
+delays_by_condition_1
+
+ggplot(data=delays_by_condition_1, aes(x = conditions, y = delays_by_condition)) +
+  geom_bar(stat="identity")+
+  coord_flip()+
+  ggtitle("Figure 2")
+
+big_delay_or_not_2 <- c(300:982)
+flights_separated_weather <- flights_separated_weather %>%
+  mutate(delay = ifelse(dep_delay %in% big_delay_or_not_2, 'yes', 'no')) %>% 
+  filter(delay=="yes")
+
+ggplot(data=flights_separated_weather, aes(x = dep_delay, y = conditions)) +
+  geom_point()+
+  ggtitle("Figure 3")
+
+delays_by_condition_2 <- flights_separated_weather %>% 
+  group_by(conditions) %>% 
+  tally() %>% 
+  rename(delays_by_condition = n) %>% 
+  arrange(desc(delays_by_condition))
+delays_by_condition_2
+
+ggplot(data=delays_by_condition_2, aes(x = conditions, y = delays_by_condition)) +
+  geom_bar(stat="identity")+
+  coord_flip()+
+  ggtitle("Figure 4")
 ```
 
-
-
-
+In Figure1 each plot represents a flight that was delayed by more than 180 mins(3hrs). They are grouped by the conditions of that day. This graph is useful if you have a specific departure delay time of interest and wish to figure out what type of weather conditions would be associated with that kind of a delay. The same is with figure 3 except it represents flights delayed by more than 300mins(5hrs). However Figures 2 and 4 are useful if you wish to know how many delays of more than 180 mins (or 300mins) were associated with a given weather condition of interest. These graphs together can be used by airport managers who can use weather forecasts and predict the possibility and amount of delay that could be caused due to weather. In our data it seems like "mostly cloudy", "overcast","scattered clouds","partly cloudy" and surprisingly "clear" have caused the biggest delays in 2011. In this data analysis I deliberately ignored the other variables in the weather dataset. This is because I believe that is more information than is actually needed to make estimates about delays. For example a gust speed of 13.8 is so arbitrary that it provides no valuable insights in this context.
 
 ## Question 5:
 
@@ -108,5 +199,51 @@ carrier flies to from Houston in the month of July.  Consider the `month()`
 function from the `lubridate` package.
 
 ```{r, echo=FALSE, message=FALSE, fig.width=12, fig.height=6}
+airports_and_states_and_flights <- left_join(flights, airports_and_states, by=c("dest"="iata"))
 
+july_flights <- airports_and_states_and_flights %>% 
+  filter(month == 7) %>%
+  group_by(carrier) %>% 
+  tally() %>% 
+  rename(total_flights_in_July=n)
+
+july_flights_NE <- airports_and_states_and_flights %>% 
+  filter(month == 7, region=="NE") %>%
+  group_by(carrier) %>% 
+  tally() %>% 
+  rename(total_flights_in_July_NE=n)
+
+july_flights_south <- airports_and_states_and_flights %>% 
+  filter(month == 7, region=="south") %>%
+  group_by(carrier) %>% 
+  tally() %>% 
+  rename(total_flights_in_July_south=n)
+
+july_flights_west <- airports_and_states_and_flights %>% 
+  filter(month == 7, region=="west") %>%
+  group_by(carrier) %>% 
+  tally() %>% 
+  rename(total_flights_in_July_west=n)
+
+july_flights_midwest <- airports_and_states_and_flights %>% 
+  filter(month == 7, region=="midwest") %>%
+  group_by(carrier) %>% 
+  tally() %>% 
+  rename(total_flights_in_July_midwest=n)
+
+
+total_1<- full_join(july_flights_NE,july_flights_south,by="carrier")
+total_2<- full_join(july_flights_west,july_flights_midwest,by="carrier")
+total_3<- full_join(total_1,total_2,by="carrier")
+total_4<- full_join(total_3,july_flights,by="carrier")
+
+
+proportion <- total_4 %>% 
+  mutate(prop_NE = round(total_flights_in_July_NE/total_flights_in_July,3)) %>%
+  mutate(prop_south = round(total_flights_in_July_south/total_flights_in_July,3)) %>% 
+  mutate(prop_west = round(total_flights_in_July_west/total_flights_in_July,3)) %>% 
+  mutate(prop_midwest = round(total_flights_in_July_midwest/total_flights_in_July,3)) %>%
+  select(carrier,prop_NE,prop_south,prop_west,prop_midwest)
+proportion
 ```
+The table above shows the proportion of flights of each carrier that fly to each of the four regions - NE, south, west and midwest. 
