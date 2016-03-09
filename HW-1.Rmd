@@ -4,14 +4,16 @@ author: "WRITE YOUR NAME HERE"
 output: html_document
 ---
 
-```{r, echo=FALSE, message=FALSE, cache=TRUE}
+```{r, echo=FALSE, message=FALSE}
 # DO NOT EDIT THIS SECTION
 
 # Load packages
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(dplyr))
 suppressPackageStartupMessages(library(lubridate))
+```
 
+```{r, echo=FALSE, message=FALSE, cache=TRUE}
 # Load data sets. Note this assumes this .Rmd files is in the same directory as
 # the .csv files.
 flights <- read.csv("data/flights.csv", stringsAsFactors = FALSE) %>% 
